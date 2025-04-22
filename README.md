@@ -1,2 +1,2 @@
-# WindowsServicePipeline
-This is a repository for an example of pipelines configuration with Azure DevOps
+# Windows Service Pipeline for Azure DevOps
+This is a repository for an example of pipeline configuration with Azure DevOps
