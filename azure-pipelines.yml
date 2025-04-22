@@ -1,0 +1,63 @@
+trigger:
+- main
+
+pool:
+  vmImage: windows-latest
+
+variables:
+  buildConfiguration: 'Release'
+
+steps:
+- task: UseDotNet@2
+  displayName: 'Use dotnet 8'
+  inputs:
+    version: '8.0.x'
+
+- task: NuGetToolInstaller@1
+
+- task: NuGetAuthenticate@1
+  displayName: 'Authenticate to Azure Artifacts feed'
+
+- script: dotnet nuget list source
+  displayName: 'List NuGet sources'
+
+- task: NuGetCommand@2
+  displayName: 'NuGet Restore with custom config'
+  inputs:
+    restoreSolution: '**/*.sln'
+    feedsToUse: config
+    nugetConfigPath: '$(Build.SourcesDirectory)/NuGet.config'
+
+- task: DotNetCoreCLI@2
+  displayName: Build project
+  inputs:
+    command: 'build'
+    projects: '**/*.csproj'
+    arguments: '--configuration $(buildConfiguration) -o $(Build.StagingDirectory)/ci-build'
+
+- task: DotNetCoreCLI@2
+  displayName: 'Run tests'
+  inputs:
+    command: 'test'
+    projects: '**/*[Te]ests/*.csproj'
+    arguments: '--configuration $(buildConfiguration) --collect "Code Coverage" --collect "XPlat Code Coverage"'
+
+- task: PublishCodeCoverageResults@2
+  displayName: 'Publish code coverage'
+  inputs:
+    summaryFileLocation: '$(Agent.BuildDirectory)/**/coverage.cobertura.xml'
+    pathToSources: '$(Agent.BuildDirectory)/**/coverage'
+
+- task: ArchiveFiles@2
+  inputs:
+    rootFolderOrFile: '$(Build.StagingDirectory)/ci-build'
+    includeRootFolder: false
+    archiveType: 'zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+    replaceExistingArchive: true
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'drop'
+    publishLocation: 'Container'
